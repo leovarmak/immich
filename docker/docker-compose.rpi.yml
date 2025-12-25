@@ -1,0 +1,57 @@
+#
+# Lightweight Immich for Raspberry Pi
+# - No machine learning (no facial recognition, no smart search)
+# - Postgres on SD card for speed
+# - Photos on external HDD
+#
+
+name: immich
+
+services:
+  immich-server:
+    container_name: immich_server
+    build:
+      context: ../
+      dockerfile: server/Dockerfile
+    volumes:
+      # Photos on external HDD
+      - ${UPLOAD_LOCATION}:/data
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env
+    environment:
+      # Disable machine learning features
+      - IMMICH_MACHINE_LEARNING_ENABLED=false
+    ports:
+      - '2283:2283'
+    depends_on:
+      - redis
+      - database
+    restart: always
+    healthcheck:
+      disable: false
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:8-alpine
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+
+  database:
+    container_name: immich_postgres
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_DATABASE_NAME}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+      # Optimize for HDD if your SD card is slow
+      # DB_STORAGE_TYPE: 'HDD'
+    volumes:
+      # Database on SD card (local storage for speed)
+      - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
+    # Reduced shared memory for Pi
+    shm_size: 64mb
+    restart: always
+
