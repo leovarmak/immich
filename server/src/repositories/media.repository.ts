@@ -316,4 +316,123 @@ export class MediaRepository {
   private parseFloat(value: string | number | undefined): number {
     return Number.parseFloat(value as string) || 0;
   }
+
+  async applyWatermark(imagePath: string, watermarkImagePath: string): Promise<Buffer> {
+    const image = sharp(imagePath);
+    const metadata = await image.metadata();
+    const width = metadata.width || 1000;
+    const height = metadata.height || 1000;
+
+    // Target watermark size - about 30% of the smaller dimension for each instance
+    const watermarkTargetWidth = Math.floor(Math.min(width, height) * 0.4);
+
+    // Load the watermark logo and remove black background by making it transparent
+    // Also resize and apply transparency for the watermark effect
+    const rawWatermark = await sharp(watermarkImagePath)
+      .resize(watermarkTargetWidth, null, { fit: 'inside' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    // Process pixels to make black/dark pixels transparent and apply overall transparency
+    const { data, info } = rawWatermark;
+    const pixels = new Uint8Array(data);
+    const watermarkOpacity = 0.55; // 55% opacity for the watermark
+
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+
+      // Calculate luminance - dark pixels become more transparent
+      const luminance = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+
+      // If pixel is very dark (black background), make it fully transparent
+      // Otherwise, apply the watermark opacity
+      if (luminance < 0.15) {
+        pixels[i + 3] = 0; // Fully transparent for black background
+      } else {
+        // Apply watermark opacity to non-black pixels
+        pixels[i + 3] = Math.floor(pixels[i + 3] * watermarkOpacity);
+      }
+    }
+
+    // Create the processed watermark buffer
+    const watermarkBuffer = await sharp(Buffer.from(pixels), {
+      raw: { width: info.width, height: info.height, channels: 4 },
+    })
+      .png()
+      .toBuffer();
+
+    const wmWidth = info.width;
+    const wmHeight = info.height;
+
+    // Calculate spacing between watermarks (tighter spacing)
+    const spacingX = wmWidth + Math.floor(wmWidth * 0.1);
+    const spacingY = wmHeight + Math.floor(wmHeight * 0.2);
+
+    // Create a larger canvas to hold the tiled pattern (for rotation)
+    const canvasSize = Math.ceil(Math.sqrt(width * width + height * height) * 1.5);
+
+    // Generate composite operations for tiled watermarks
+    const compositeOps: sharp.OverlayOptions[] = [];
+
+    for (let y = 0; y < canvasSize; y += spacingY) {
+      for (let x = 0; x < canvasSize; x += spacingX) {
+        compositeOps.push({
+          input: watermarkBuffer,
+          left: x,
+          top: y,
+          blend: 'over' as const,
+        });
+      }
+    }
+
+    // Create tiled watermark layer on larger canvas
+    const tiledWatermark = await sharp({
+      create: {
+        width: canvasSize,
+        height: canvasSize,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite(compositeOps)
+      .png()
+      .toBuffer();
+
+    // Rotate the tiled watermark layer diagonally
+    const rotatedWatermark = await sharp(tiledWatermark)
+      .rotate(-30, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .toBuffer();
+
+    // Extract the center portion matching original image dimensions
+    const rotatedMeta = await sharp(rotatedWatermark).metadata();
+    const rotatedWidth = rotatedMeta.width || canvasSize;
+    const rotatedHeight = rotatedMeta.height || canvasSize;
+    const extractLeft = Math.max(0, Math.floor((rotatedWidth - width) / 2));
+    const extractTop = Math.max(0, Math.floor((rotatedHeight - height) / 2));
+
+    const finalWatermark = await sharp(rotatedWatermark)
+      .extract({
+        left: extractLeft,
+        top: extractTop,
+        width: Math.min(width, rotatedWidth - extractLeft),
+        height: Math.min(height, rotatedHeight - extractTop),
+      })
+      .png()
+      .toBuffer();
+
+    // Composite the watermark onto the original image
+    return image
+      .composite([
+        {
+          input: finalWatermark,
+          gravity: 'center',
+          blend: 'over' as const,
+        },
+      ])
+      .jpeg({ quality: 90 })
+      .toBuffer();
+  }
 }

@@ -172,6 +172,7 @@ export type AuthSharedLink = {
   allowUpload: boolean;
   allowDownload: boolean;
   password: string | null;
+  enableWatermark: boolean;
 };
 
 export type SharedLink = {
@@ -190,6 +191,7 @@ export type SharedLink = {
   type: SharedLinkType;
   userId: string;
   slug: string | null;
+  enableWatermark: boolean;
 };
 
 export type Album = Selectable<AlbumTable> & {
@@ -353,6 +355,7 @@ export const columns = {
     'shared_link.allowUpload',
     'shared_link.allowDownload',
     'shared_link.password',
+    'shared_link.enableWatermark',
   ],
   user: userColumns,
   userWithPrefix: userWithPrefixColumns,

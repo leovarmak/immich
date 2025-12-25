@@ -79,6 +79,7 @@ export class SharedLinkService extends BaseService {
         allowDownload: dto.showMetadata === false ? false : (dto.allowDownload ?? true),
         showExif: dto.showMetadata ?? true,
         slug: dto.slug || null,
+        enableWatermark: dto.enableWatermark ?? false,
       });
 
       return this.mapToSharedLink(sharedLink, { withExif: true });
@@ -107,6 +108,7 @@ export class SharedLinkService extends BaseService {
         allowDownload: dto.allowDownload,
         showExif: dto.showMetadata,
         slug: dto.slug || null,
+        enableWatermark: dto.enableWatermark,
       });
       return this.mapToSharedLink(sharedLink, { withExif: true });
     } catch (error) {

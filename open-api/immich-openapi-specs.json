@@ -19718,6 +19718,10 @@
             "nullable": true,
             "type": "string"
           },
+          "enableWatermark": {
+            "default": false,
+            "type": "boolean"
+          },
           "expiresAt": {
             "default": null,
             "format": "date-time",
@@ -19765,6 +19769,9 @@
             "nullable": true,
             "type": "string"
           },
+          "enableWatermark": {
+            "type": "boolean"
+          },
           "expiresAt": {
             "format": "date-time",
             "nullable": true,
@@ -19809,6 +19816,9 @@
             "nullable": true,
             "type": "string"
           },
+          "enableWatermark": {
+            "type": "boolean"
+          },
           "expiresAt": {
             "format": "date-time",
             "nullable": true,
@@ -19852,6 +19862,7 @@
           "assets",
           "createdAt",
           "description",
+          "enableWatermark",
           "expiresAt",
           "id",
           "key",

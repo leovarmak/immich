@@ -37,9 +37,13 @@ import { UploadFile, UploadRequest } from 'src/types';
 import { requireUploadAccess } from 'src/utils/access';
 import { asUploadRequest, getAssetFiles, onBeforeLink } from 'src/utils/asset.util';
 import { isAssetChecksumConstraint } from 'src/utils/database';
-import { getFilenameExtension, getFileNameWithoutExtension, ImmichFileResponse } from 'src/utils/file';
+import { getFilenameExtension, getFileNameWithoutExtension, ImmichBufferResponse, ImmichFileResponse } from 'src/utils/file';
 import { mimeTypes } from 'src/utils/mime-types';
 import { fromChecksum } from 'src/utils/request';
+import { join } from 'node:path';
+
+// Path to the watermark logo image
+const WATERMARK_IMAGE_PATH = join(__dirname, '..', '..', 'resources', 'watermark', 'logo.png');
 
 export interface AssetMediaRedirectResponse {
   targetSize: AssetMediaSize | 'original';
@@ -210,7 +214,7 @@ export class AssetMediaService extends BaseService {
     auth: AuthDto,
     id: string,
     dto: AssetMediaOptionsDto,
-  ): Promise<ImmichFileResponse | AssetMediaRedirectResponse> {
+  ): Promise<ImmichFileResponse | ImmichBufferResponse | AssetMediaRedirectResponse> {
     await this.requireAccess({ auth, permission: Permission.AssetView, ids: [id] });
 
     const asset = await this.findOrFail(id);
@@ -221,7 +225,8 @@ export class AssetMediaService extends BaseService {
     if (size === AssetMediaSize.THUMBNAIL && thumbnailFile) {
       filepath = thumbnailFile.path;
     } else if (size === AssetMediaSize.FULLSIZE) {
-      if (mimeTypes.isWebSupportedImage(asset.originalPath)) {
+      // Don't redirect to original when watermark is enabled - we need to process the image
+      if (mimeTypes.isWebSupportedImage(asset.originalPath) && !auth.sharedLink?.enableWatermark) {
         // use original file for web supported images
         return { targetSize: 'original' };
       }
@@ -236,8 +241,22 @@ export class AssetMediaService extends BaseService {
     if (!filepath) {
       throw new NotFoundException('Asset media not found');
     }
+
     let fileName = getFileNameWithoutExtension(asset.originalFileName);
     fileName += `_${size}`;
+
+    // Apply watermark if shared link has watermark enabled
+    if (auth.sharedLink?.enableWatermark) {
+      const watermarkedBuffer = await this.mediaRepository.applyWatermark(filepath, WATERMARK_IMAGE_PATH);
+      fileName += '.jpg';
+      return new ImmichBufferResponse({
+        fileName,
+        buffer: watermarkedBuffer,
+        contentType: 'image/jpeg',
+        cacheControl: CacheControl.PrivateWithoutCache, // Don't cache watermarked images
+      });
+    }
+
     fileName += getFilenameExtension(filepath);
 
     return new ImmichFileResponse({

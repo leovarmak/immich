@@ -18,6 +18,7 @@
   let allowDownload = $state(true);
   let allowUpload = $state(false);
   let showMetadata = $state(true);
+  let enableWatermark = $state(false);
   let password = $state('');
   let slug = $state('');
   let expiresAt = $state<string | null>(null);
@@ -41,6 +42,7 @@
       password,
       allowDownload,
       showMetadata,
+      enableWatermark,
       slug,
     });
     if (success) {
@@ -95,6 +97,10 @@
 
     <Field label={$t('allow_public_user_to_upload')}>
       <Switch bind:checked={allowUpload} />
+    </Field>
+
+    <Field label={$t('enable_watermark')} description={$t('enable_watermark_description')}>
+      <Switch bind:checked={enableWatermark} />
     </Field>
   </div>
 </FormModal>

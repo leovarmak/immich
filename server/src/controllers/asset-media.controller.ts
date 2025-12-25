@@ -41,7 +41,7 @@ import { FileUploadInterceptor, getFiles } from 'src/middleware/file-upload.inte
 import { LoggingRepository } from 'src/repositories/logging.repository';
 import { AssetMediaService } from 'src/services/asset-media.service';
 import { UploadFiles } from 'src/types';
-import { ImmichFileResponse, sendFile } from 'src/utils/file';
+import { ImmichBufferResponse, ImmichFileResponse, sendBuffer, sendFile } from 'src/utils/file';
 import { FileNotEmptyValidator, UUIDParamDto } from 'src/validation';
 
 @ApiTags(ApiTag.Assets)
@@ -145,6 +145,9 @@ export class AssetMediaController {
 
     if (viewThumbnailRes instanceof ImmichFileResponse) {
       await sendFile(res, next, () => Promise.resolve(viewThumbnailRes), this.logger);
+    } else if (viewThumbnailRes instanceof ImmichBufferResponse) {
+      // Watermarked image buffer response
+      await sendBuffer(res, next, () => Promise.resolve(viewThumbnailRes), this.logger);
     } else {
       // viewThumbnailRes is a AssetMediaRedirectResponse
       // which redirects to the original asset or a specific size to make better use of caching

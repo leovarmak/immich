@@ -21,6 +21,7 @@
   let allowDownload = $state(sharedLink.allowDownload);
   let allowUpload = $state(sharedLink.allowUpload);
   let showMetadata = $state(sharedLink.showMetadata);
+  let enableWatermark = $state(sharedLink.enableWatermark);
   let password = $state(sharedLink.password ?? '');
   let slug = $state(sharedLink.slug ?? '');
   let shareType = sharedLink.album ? SharedLinkType.Album : SharedLinkType.Individual;
@@ -38,6 +39,7 @@
       allowUpload,
       allowDownload,
       showMetadata,
+      enableWatermark,
       slug: slug.trim() ?? null,
     });
     if (success) {
@@ -91,6 +93,10 @@
 
     <Field label={$t('allow_public_user_to_upload')}>
       <Switch bind:checked={allowUpload} />
+    </Field>
+
+    <Field label={$t('enable_watermark')} description={$t('enable_watermark_description')}>
+      <Switch bind:checked={enableWatermark} />
     </Field>
   </div>
 </FormModal>
